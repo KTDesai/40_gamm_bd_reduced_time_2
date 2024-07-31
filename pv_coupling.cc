@@ -2,6 +2,9 @@
 #include<iostream>
 #include<fstream>
 #include <vector>
+#include <Eigen/IterativeLinearSolvers>
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
 
 PV_coupling::PV_coupling(int no_of_cells, double nu_value, double initial_pressure, double initial_alpha, double initial_rho, double initial_mu, Vector initial_velocity): nu(no_of_cells), velocity(no_of_cells), pressure(no_of_cells), alpha(no_of_cells), rho(no_of_cells), mu(no_of_cells)
 {
@@ -492,13 +495,66 @@ void PV_coupling::velocity_calculate_initial_residuals(std::vector<double> &x_di
 }    
 
 
-void PV_coupling::velocity_solve_matrices()
+void PV_coupling::velocity_solve_matrices(std::vector<Cell> list_of_cells)
 {
-    // velocity.vector_field_values_x = velocity_a_matrix_combined.lu().solve(velocity_b_vector_combined_ux);
+   int size = list_of_cells.size();
+     //velocity.vector_field_values_x = velocity_a_matrix_combined.lu().solve(velocity_b_vector_combined_ux);
     // velocity.vector_field_values_y = velocity_a_matrix_combined.lu().solve(velocity_b_vector_combined_uy);
+    SpMat Au(size, size);
 
-    velocity.vector_field_values_x = velocity_a_matrix_combined.fullPivHouseholderQr().solve(velocity_b_vector_combined_ux);
-    velocity.vector_field_values_y = velocity_a_matrix_combined.fullPivHouseholderQr().solve(velocity_b_vector_combined_uy);
+
+    Au.reserve(Eigen::VectorXi::Constant(size,5));
+    for(int row=0; row<size; row++)
+    {
+      for(int col = 0; col < size; col++ )
+      {
+        if(fabs(velocity_a_matrix_combined(row,col)) > 1e-10)
+        {
+           Au.insert(row,col) = velocity_a_matrix_combined(row,col);
+        }
+      }
+    }
+    Au.makeCompressed();
+    // std::cout << pressure_a_matrix_combined.isApprox(Eigen::MatrixXd(A)) << std::endl;
+    
+    Eigen::BiCGSTAB<SpMat> solver;
+    solver.setTolerance(1e-10);
+    solver.compute(Au);
+
+    //std::cout<<"rows="<<velocity_a_matrix_combined.rows();
+    //std::cout<<"columns="<<velocity_a_matrix_combined.cols();
+
+     velocity.vector_field_values_x = solver.solve(velocity_b_vector_combined_ux);  
+     
+     velocity.vector_field_values_y = solver.solve(velocity_b_vector_combined_uy);      
+
+    // pressure.scalar_field_values = pressure_a_matrix_combined.fullPivHouseholderQr().solve(pressure_b_vector_combined);
+    /*Eigen::ConjugateGradient<SpMat, Eigen::Lower|Eigen::Upper> cg;
+    cg.setTolerance(1e-10);
+    cg.compute(A);
+    pressure.scalar_field_values = cg.solve(pressure_b_vector_combined);*/
+
+    //velocity.vector_field_values_x = velocity_a_matrix_combined.partialPivLu().solve(velocity_b_vector_combined_ux);
+    //velocity.vector_field_values_y = velocity_a_matrix_combined.partialPivLu().solve(velocity_b_vector_combined_uy);
+
+   /*Auy.reserve(Eigen::VectorXi::Constant(size,5));
+    for(int row=0; row<size; row++)
+    {
+      for(int col = 0; col < size; col++ )
+      {
+        if(fabs(velocity_a_matrix_combined(row,col)) > 1e-12)
+        {
+           Auy.insert(row,col) = velocity_a_matrix_combined(row,col);
+        }
+      }
+    }
+    Auy.makeCompressed();
+    
+    //Eigen::BiCGSTAB<SpMat> solver;
+    solver.setTolerance(1e-12);
+    solver.compute(Auy);
+
+     velocity.vector_field_values_y = solver.solve(velocity_b_vector_combined_uy);  */  
 
     velocity.set_old_vector_field_values();
 }  
@@ -832,7 +888,6 @@ void PV_coupling::velocity_output_vector_field_to_file(std::vector<double> x_dis
                 vector_plots<<x_distance[j]<<"\t"<<y_distance[i]<<"\t"<<pressure.scalar_field_values(j + i*x_distance.size())<<"\t"<<vx/v_mag<<"\t"<<vy/v_mag<<std::endl;
               }
          }
-
 
         vector_field_profiles_x.close();
         vector_field_profiles_y.close();
@@ -1169,9 +1224,33 @@ void PV_coupling::pressure_calculate_initial_residuals_p(std::vector<double> &x_
 void PV_coupling::pressure_combine_and_solve_matrices(std::vector<Cell> &list_of_cells)
 {
     pressure_combine_a_and_b_matrices();
-    int size = list_of_cells.size();
 
-    pressure.scalar_field_values = pressure_a_matrix_combined.fullPivHouseholderQr().solve(pressure_b_vector_combined);
+    int size = list_of_cells.size();
+    SpMat A(size, size);
+    A.reserve(Eigen::VectorXi::Constant(size,5));
+    for(int row=0; row<size; row++)
+    {
+      for(int col = 0; col < size; col++ )
+      {
+        if(fabs(pressure_a_matrix_combined(row,col)) > 1e-12)
+        {
+           A.insert(row,col) = pressure_a_matrix_combined(row,col);
+        }
+      }
+    }
+    A.makeCompressed();
+    // std::cout << pressure_a_matrix_combined.isApprox(Eigen::MatrixXd(A)) << std::endl;
+    
+    // Eigen::BiCGSTAB<SpMat> solver;
+    // solver.setTolerance(1e-12);
+    // solver.compute(A);
+
+    // pressure.scalar_field_values = solver.solve(pressure_b_vector_combined);    
+    // pressure.scalar_field_values = pressure_a_matrix_combined.fullPivHouseholderQr().solve(pressure_b_vector_combined);
+    Eigen::ConjugateGradient<SpMat, Eigen::Lower|Eigen::Upper> cg;
+    cg.setTolerance(1e-10);
+    cg.compute(A);
+    pressure.scalar_field_values = cg.solve(pressure_b_vector_combined);
 
     pressure.set_old_scalar_field_values();
 
@@ -1268,10 +1347,6 @@ void PV_coupling::pressure_compute_flux_correction(std::vector<Cell> &list_of_ce
 
    }
 }
-
-
-
-
           
 void PV_coupling::pressure_output_scalar_matrix_coefficients_to_file(double total_cells)
 {
@@ -1402,12 +1477,10 @@ Scalar_field PV_coupling::retrieve_pressure_field()
 
     for(int i=0; i<list_of_cells.size(); i++)
     {
-         Vector distance = list_of_cells[i].get_cell_centre();
+        Vector distance = list_of_cells[i].get_cell_centre();
 
-        double x = distance[0];
-        double y = distance[1];
-        
-        if(( distance[1] <= 0.017) || ((pow ((x - 0.05),2)) + (pow((y - 0.075),2)) < (pow(0.0125,2))))
+        // if(distance[0]<= 0.025 && distance[1] <= 0.05)
+        if(distance[0]<= x_max && distance[1] <= y_max)
         {
             alpha.scalar_field_values(i) = 1.0;
         }
@@ -1416,7 +1489,6 @@ Scalar_field PV_coupling::retrieve_pressure_field()
         {
             alpha.scalar_field_values(i) = 0.0;
         }
-
         
 
         rho.scalar_field_values(i) = alpha.scalar_field_values(i) * rho_1 + ((1 - (alpha.scalar_field_values(i))) * rho_2);
@@ -1788,11 +1860,41 @@ void PV_coupling::alpha_combine_a_and_b_matrices()
     }  
 
 
-void PV_coupling::alpha_combine_and_solve_matrices()
+void PV_coupling::alpha_combine_and_solve_matrices(std::vector<Cell> list_of_cells)
 {
     alpha_combine_a_and_b_matrices();
 
-    alpha.scalar_field_values = alpha_a_matrix_combined.fullPivHouseholderQr().solve(alpha_b_vector_combined);
+    int size = list_of_cells.size();
+    //std::cout<<size;
+    //velocity.vector_field_values_x = velocity_a_matrix_combined.lu().solve(velocity_b_vector_combined_ux);
+    // velocity.vector_field_values_y = velocity_a_matrix_combined.lu().solve(velocity_b_vector_combined_uy);
+    SpMat Au(size, size);
+
+
+    Au.reserve(Eigen::VectorXi::Constant(size,5));
+    for(int row=0; row<size; row++)
+    {
+      for(int col = 0; col < size; col++ )
+      {
+        if(fabs(alpha_a_matrix_combined(row,col)) > 1e-10)
+        {
+           Au.insert(row,col) = alpha_a_matrix_combined(row,col);
+        }
+      }
+    }
+    Au.makeCompressed();
+    // std::cout << pressure_a_matrix_combined.isApprox(Eigen::MatrixXd(A)) << std::endl;
+    
+    Eigen::BiCGSTAB<SpMat> solver;
+    solver.setTolerance(1e-10);
+    solver.compute(Au);
+
+    //std::cout<<"rows="<<velocity_a_matrix_combined.rows();
+    //std::cout<<"columns="<<velocity_a_matrix_combined.cols();
+
+    alpha.scalar_field_values = solver.solve(alpha_b_vector_combined);  
+
+    //alpha.scalar_field_values = alpha_a_matrix_combined.fullPivHouseholderQr().solve(alpha_b_vector_combined);
     //alpha.scalar_field_values = alpha_a_matrix_combined.lu().solve(alpha_b_vector_combined);
 }
 

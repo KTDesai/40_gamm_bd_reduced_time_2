@@ -1,4 +1,4 @@
-# Install script for directory: /home/csc2309/Desktop/VOF_Project_Work/VOF_codes/05_VOF/04_final_cases/FINAL_versions_phase_1/confirmed/FINAL_INTER_GAMMA/droplet_on_pond_gamma
+# Install script for directory: /home/csc2309/Desktop/VOF_Project_Work/VOF_codes/05_VOF/04_final_cases/FINAL_versions_phase_1/confirmed/openMP/mesh_40_reduced
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -45,5 +45,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/csc2309/Desktop/VOF_Project_Work/VOF_codes/05_VOF/04_final_cases/FINAL_versions_phase_1/confirmed/FINAL_INTER_GAMMA/droplet_on_pond_gamma/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/csc2309/Desktop/VOF_Project_Work/VOF_codes/05_VOF/04_final_cases/FINAL_versions_phase_1/confirmed/openMP/mesh_40_reduced/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

@@ -18,8 +18,8 @@
 int main (void)
 { 
   int rows = 40, columns = 40, total_cells = rows*columns, output_interval = 50; 
-
-  double delta_time = 0.000005, nu_val = 0.001, alpha_u = 0.7, initial_pressure = 0.0, alpha_initial = 0.0, initial_rho = 0.0, initial_mu = 0.0;
+ 
+  double delta_time = 0.0000005, nu_val = 0.001, alpha_u = 0.7, initial_pressure = 0.0, alpha_initial = 0.0, initial_rho = 0.0, initial_mu = 0.0;
   double rho_1 = 1000.0, rho_2 = 1.0, nu_1 = 0.000001, nu_2 = 0.0000148;
 
   double mu_1 = nu_1*rho_1;
@@ -61,11 +61,11 @@ int main (void)
     y_distance[j] = d_y[1];
   }
 
-  std::vector<std::string> boundary_types_scalar = {"neumann","neumann","neumann"} ;
-  std::vector<double> boundary_values_scalar = {0.0, 0.0, 0.0};
+  std::vector<std::string> boundary_types_scalar = {"neumann","neumann","neumann","neumann", "neumann"} ;
+  std::vector<double> boundary_values_scalar = {0.0, 0.0, 0.0, 0.0, 0.0};
 
-  std::vector<std::string> boundary_types_vector = {"dirichlet","dirichlet","dirichlet"};
-  std::vector<std::vector<double>> boundary_values_vector = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
+  std::vector<std::string> boundary_types_vector = {"dirichlet","dirichlet","dirichlet","dirichlet","dirichlet"};
+  std::vector<std::vector<double>> boundary_values_vector = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
 
   std::vector<Boundary> list_of_boundaries = m.return_list_of_all_boundaries();
 
@@ -108,7 +108,8 @@ int main (void)
 
      cavity.alpha_rate_of_change_discretization(list_of_cells, delta_time);
      cavity.alpha_convection_discretization(list_of_faces, list_of_boundaries, alpha_boundary, velocity_boundary, list_of_cells);
-     cavity.alpha_combine_and_solve_matrices();
+      //std::cout<<"total_cells"<<total_cells<<std::endl;
+     cavity.alpha_combine_and_solve_matrices(list_of_cells);
      cavity.alpha_update_rho_nu(list_of_cells, rho_1, rho_2, nu_1, nu_2, mu_1, mu_2);
 
      cavity.velocity_compute_rate_of_change_matrix(list_of_cells, delta_time);
@@ -120,7 +121,9 @@ int main (void)
      cavity.velocity_under_relaxation(list_of_cells, alpha_u); 
 
      cavity.velocity_calculate_initial_residuals(x_distance, y_distance, iteration_no, sum_initial_residual_ux, sum_initial_residual_uy);
-     cavity.velocity_solve_matrices();
+     //std::cout<<"Reached";
+     cavity.velocity_solve_matrices(list_of_cells);
+
        
      cavity.velocity_plot_convergence_initial_x(x_velocity_convergence_initial, iteration_no);
      cavity.velocity_plot_convergence_initial_y(y_velocity_convergence_initial, iteration_no);

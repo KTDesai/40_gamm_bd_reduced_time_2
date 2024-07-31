@@ -14,6 +14,11 @@ set(Eigen3_DIR "/usr/lib/cmake/eigen3")
 find_package(Eigen3 REQUIRED)
 target_link_libraries(main PUBLIC Eigen3::Eigen)
 
+ find_package(OpenMP)
+ if(OpenMP_CXX_FOUND)
+ target_link_libraries(main PUBLIC OpenMP::OpenMP_CXX)
+ endif()
+
 execute_process(
     COMMAND ${CMAKE_COMMAND} -E create_symlink
         ${CMAKE_BINARY_DIR}/compile_commands.json
